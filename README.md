@@ -8,6 +8,10 @@
   file manager.
 </p>
 
+> **This is a fork** of [EdoardoFiore/StreamingCommunity-downloader](https://github.com/EdoardoFiore/StreamingCommunity-downloader).
+> It adds a **Manga** section (Italian scans from MangaWorld, filed for Komga/Kavita) and clearer
+> network errors. Everything else is upstream's; see [What this fork adds](#what-this-fork-adds).
+
 ---
 
 ## Screenshots
@@ -108,6 +112,9 @@
 ## Features
 
 - Search and download films, TV series, and anime
+- **Manga in Italian from MangaWorld**: browse the source's own front page or search, pick chapters
+  or whole volumes, and get one `.cbz`/`.zip`/`.pdf` per chapter or per volume with its metadata,
+  ready for Komga or Kavita
 - **Recovers the source domain on its own** when it rotates: finds the new one, verifies it,
   and proposes it for one click
 - **Plot, genres, rating, artwork and trailers** on the title page — no API key required
@@ -134,6 +141,43 @@
 
 ---
 
+## What this fork adds
+
+| Area | What changed |
+|---|---|
+| **Manga section** | New sidebar page *Manga*: MangaWorld's own front page as shelves (trending chapters, latest chapters, manga of the month, new additions), search, and a title page with chapters grouped by volume, already-downloaded ones marked. |
+| **Download as a book** | Each chapter, or each whole volume, becomes one `.cbz`, `.zip` or `.pdf` with a `ComicInfo.xml`, in a *Manga* library of its own. Chosen in Settings, overridable per download. |
+| **Komga-friendly layout** | One folder per series, zero-padded file names, `ComicInfo` numbers and volumes. A volume download replaces the chapter files it now contains. |
+| **MangaWorld domain recovery** | Like the StreamingCommunity one: finds the new domain through the 301s of old ones, verifies it, and *proposes* it (banner on the Manga page). |
+| **Readable network errors** | A certificate that fails verification is explained — typically an Italian ISP block (AGCOM) answering in the site's place — with the fix: a VPN, or `HTTPS_PROXY`/`ALL_PROXY` (SOCKS supported). Verification is never turned off. |
+| **Cleanups** | Library kinds defined once (`config.LIBRARY_TYPES`), settings errors show the server's message, dead follow-button code removed, broken CSS block removed. |
+
+New files: `app/core/mangaworld.py` (source, parsing, packing), `app/core/manga_pdf.py` (PDF writer
+that keeps JPEG pages byte for byte), `app/core/manga_recovery.py`, `app/core/network.py`,
+`app/routers/manga.py`, `app/static/page-manga.js`, `tests/test_manga.py`. Design notes:
+[`design/manga.md`](design/manga.md).
+
+New dependencies: `Pillow` (PDF output only) and `PySocks` (`socks5h://` proxies).
+
+**Updating a fork install.** The *new version* badge and the update button follow upstream's
+releases and images (`app/updates.py`, `docker-compose.template.yml`). Installing an upstream image
+removes the manga section: build this fork's image yourself (`docker build -t sc-panel .`) and point
+the compose file at it, or run it from source.
+
+### Using the Manga section
+
+1. **Settings → Libraries**: add a library of type *Manga* (the folder Komga or Kavita reads).
+2. **Settings → Download → Output format**: pick the format (CBZ is what Komga reads best) and
+   *one file per chapter* or *per volume*.
+3. **Manga** in the sidebar: browse the shelves or search; clearing the search box goes back to the
+   shelves.
+4. Open a title, tick chapters (or a whole volume from its header), then *Scarica selezionati*, or
+   *Scarica mancanti* for everything not yet in the library. Progress is on the Downloads page.
+5. In Komga, point a library at the Manga folder (the folder *containing* the series, not a series)
+   and sort each series by number.
+
+---
+
 ## Quick Start
 
 ### Docker (recommended)
@@ -147,7 +191,7 @@ docker compose -f docker-compose.template.yml up -d
 The panel is available at `http://localhost:8000`. Set the source domain in **Impostazioni** on first
 use: it is not shipped in the image, because it rotates.
 
-The image is published to GitHub Container Registry on every push to `main`:
+The image is published to GitHub Container Registry for every release (a `v*` tag):
 
 ```
 ghcr.io/edoardofiore/streamingcommunity-downloader:latest
@@ -356,6 +400,10 @@ failed and why.
 | `FFPROBE_PATH` | — | full path to `ffprobe`; see the note below |
 | `DOMAIN_SOURCE_URL` | a public page | where replacement domains are read from |
 | `DOMAIN_NAME_PATTERN` | `streaming(community\|unity)…` | which names may be adopted automatically |
+| `MANGAWORLD_HOST` | `www.mangaworld.mx` | MangaWorld's host, when not saved in the UI |
+| `MANGAWORLD_NAME_PATTERN` | `mangaworld…` | which MangaWorld names may be adopted automatically |
+| `MANGAWORLD_DOMAIN_SOURCE_URL` | — | an optional page listing MangaWorld's current domain |
+| `HTTPS_PROXY` / `ALL_PROXY` | — | send every outbound request through a proxy (`http://…`, `socks5h://…`); see below |
 | `COOKIE_SECURE` | `0` | set to `1` when serving over HTTPS |
 | `COOKIE_SAMESITE` | `lax` | `none` (with `COOKIE_SECURE=1`) only to embed the panel cross-site |
 | `TRUST_PROXY_HEADERS` | `0` | set to `1` only behind a reverse proxy you control |
@@ -417,6 +465,21 @@ page look identical from the inside; you can always type a domain in by hand.
 
 **Impostazioni → Sorgente** has a switch for adopting the new domain without asking, off unless you
 turn it on, and a "Controlla ora" button.
+
+**If a verified domain still "cannot be reached"**, read the message: when it says the certificate
+is signed by someone other than a certificate authority — Wind Tre's
+`securityenforcementservice.windtre.it`, for one — your provider is blocking the site and answering
+in its place. Changing DNS does not help: the block is on the name in the TLS handshake. Run the
+panel behind a VPN, or point `HTTPS_PROXY`/`ALL_PROXY` at a proxy outside that network
+(`socks5h://` resolves names on the proxy too). Turning certificate checks off would only show you
+the block page.
+
+MangaWorld moves too, and gets the same treatment with a different way of finding the new address:
+it publishes no page announcing it, but its old domains answer with a redirect to the current one.
+So the panel asks every MangaWorld domain it has used before, plus a list of known ones, where they
+point — one hop, read and never followed — and verifies what they name. Domains that lapsed and now
+send visitors to ad networks or parking pages fail the same guard as above. The proposal appears as
+a banner on the **Manga** page; the host can also be typed in under **Altri host**.
 
 ---
 
@@ -613,6 +676,40 @@ entirely.
 
 Changing either setting leaves what is already downloaded alone. Both extensions keep counting as
 present, so nothing is re-downloaded because of it.
+
+Manga go to the **Manga** library (Settings → Libraries; without one, to `VIDEOS_DIR`), one folder
+per title and one archive per chapter (or per volume), numbered so a plain name sort is reading
+order:
+
+```
+manga/
+├── One Piece/                      # one file per chapter
+│   ├── One Piece - Cap. 0000.cbz
+│   ├── One Piece - Cap. 0010.5.cbz
+│   └── One Piece - Cap. 1198.cbz
+└── Berserk/                        # one file per volume
+    ├── Berserk - Vol. 001.cbz
+    ├── Berserk - Vol. 002.cbz
+    └── Berserk - Cap. 0375.cbz     # not in a volume yet
+```
+
+The format is a setting (**Settings → Download → Output format → Manga**) and can be overridden per
+download on the Manga page: `.cbz` (default), `.zip` (the same archive), or `.pdf`, written without
+re-compressing the pages — JPEG pages go in byte for byte. A chapter saved in any format counts as
+present, and downloading it again in another format replaces the old copy instead of leaving two.
+
+Komga's model is series → books, with nothing in between, so the second setting decides what a
+book is: **one file per chapter** (the default) or **one per volume** (`Title - Vol. 007.cbz`, the
+volume's chapters in reading order inside). A long series reads far better per volume. Switching an
+existing series is a re-download in volume mode: each finished volume replaces the chapter files it
+now holds. Chapters the source has not put in a volume yet stay files of their own. Inside Komga,
+sort a series by *number*: the order files were written in is download order, which is parallel.
+
+Each `.cbz` carries a `ComicInfo.xml` (series, chapter, volume, plot, authors, genres, reading
+direction), which Komga and Kavita read for sorting and metadata. A chapter missing even one page
+fails instead of being packed: a book with a hole in it opens fine and is wrong. Jellyfin is not a
+good manga reader; point Komga or Kavita at this folder instead, and a download hook can ask it to
+scan when a chapter lands.
 
 ---
 

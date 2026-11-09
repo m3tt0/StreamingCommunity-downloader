@@ -22,4 +22,5 @@ panel.db-shm
 # Runtime config, written by the panel (source domain, libraries, settings).
 # Not committed: the source domain rotates, so a baked-in value ships stale.
 data.json
+data.json.lock
 schedule.json

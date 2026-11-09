@@ -79,6 +79,51 @@
           </div>
         </div>
 
+        <!-- ── Manga ───────────────────────────────────────────── -->
+        <!-- One page, two views: the search and a title's chapters. The
+             title view is rendered by page-manga.js into #manga-detail. -->
+        <div id="page-manga" style="display:none">
+          <!-- MangaWorld moved: same contract as #domain-banner, its own
+               candidate. data-perm hides the buttons from who cannot apply. -->
+          <div id="manga-domain-banner" class="alert domain-banner mb-4" role="status" style="display:none">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <i class="ti ti-world-search"></i>
+              <div class="flex-fill">
+                <strong>MangaWorld ha cambiato dominio.</strong>
+                Trovato <code id="manga-domain-host"></code>, verificato dal pannello.
+              </div>
+              <button class="btn btn-sm btn-primary" data-perm="MANAGE_SETTINGS"
+                      data-action="manga:domainApply" id="manga-domain-apply">Applica</button>
+              <button class="btn btn-sm btn-ghost-secondary" data-perm="MANAGE_SETTINGS"
+                      data-action="manga:domainDismiss">Ignora</button>
+            </div>
+          </div>
+          <div id="manga-browse">
+            <!-- The welcome, shown only with the box empty, like the search
+                 page's: once a query exists the results are the page. -->
+            <div id="manga-hero" class="sh-hero">
+              <div class="sh-art" id="manga-hero-art" aria-hidden="true"></div>
+              <h1 class="sh-title">Il tuo prossimo<br><span class="sh-accent">manga, in italiano.</span></h1>
+              <p class="sh-sub">Scegli capitoli o volumi interi: arrivano in libreria pronti per Komga.</p>
+            </div>
+            <div class="sc-searchbar mb-4">
+              <input type="search" id="manga-search-input" placeholder="Cerca un manga..."
+                     data-enter="manga:search" data-input="manga:input" data-escape="manga:clear">
+              <button class="sc-search-btn" data-action="manga:search">
+                <i class="ti ti-search"></i>Cerca
+              </button>
+            </div>
+            <div id="manga-home"></div>
+            <div id="manga-results" class="row g-3"></div>
+            <div id="manga-more" class="text-center mt-4" style="display:none">
+              <button class="source-btn" data-action="manga:more">
+                <i class="ti ti-plus"></i>Carica altri
+              </button>
+            </div>
+          </div>
+          <div id="manga-detail" style="display:none"></div>
+        </div>
+
         <!-- ── Downloads ───────────────────────────────────────── -->
         <div id="page-downloads" style="display:none">
           <div class="pg-head">
@@ -341,6 +386,7 @@
 <script src="{{ asset('router.js') }}"></script>
 <script src="{{ asset('page-search.js') }}"></script>
 <script src="{{ asset('page-title.js') }}"></script>
+<script src="{{ asset('page-manga.js') }}"></script>
 <script src="{{ asset('page-downloads.js') }}"></script>
 <script src="{{ asset('page-requests.js') }}"></script>
 <script src="{{ asset('page-watches.js') }}"></script>

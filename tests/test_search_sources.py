@@ -208,7 +208,7 @@ def test_an_unreachable_domain_raises(monkeypatch):
 
     monkeypatch.setattr(page.requests, "get", boom)
 
-    with pytest.raises(RuntimeError, match="Cannot reach"):
+    with pytest.raises(RuntimeError, match="gone.test non risponde"):
         page.get_domain_version("gone.test")
 
 

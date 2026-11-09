@@ -108,8 +108,12 @@ def fetch_candidates(url: str | None = None) -> list[str]:
 
 # ── The guard ─────────────────────────────────────────────────────────────────
 
-def _check_shape(host: str) -> str | None:
-    """Syntactic rejection reason, or None if the host looks like a candidate."""
+def _check_shape(host: str, pattern: re.Pattern | None = None) -> str | None:
+    """Syntactic rejection reason, or None if the host looks like a candidate.
+
+    ``pattern`` is the registrable name a source may carry; StreamingCommunity's
+    by default. Each source passes its own constant, never a setting.
+    """
     if not host or not _HOST_RE.match(host):
         return "forma non valida"
     if host.endswith(_LOCAL_SUFFIXES) or host == "localhost":
@@ -133,7 +137,7 @@ def _check_shape(host: str) -> str | None:
         return "non è un dominio di secondo livello"
 
     name = labels[0]
-    if not NAME_PATTERN.match(name):
+    if not (pattern or NAME_PATTERN).match(name):
         return f"nome «{name}» non riconosciuto"
     return None
 
@@ -171,14 +175,14 @@ def _resolves_to_public(host: str) -> bool:
     return True
 
 
-def is_plausible(host: str) -> tuple[bool, str]:
+def is_plausible(host: str, pattern: re.Pattern | None = None) -> tuple[bool, str]:
     """Whether this host may be adopted, and why not when it may not.
 
     The reason is returned rather than logged and dropped: a rebranded source is
     indistinguishable from an attack from in here, and the administrator who has
     to tell them apart needs to see what was refused.
     """
-    reason = _check_shape(host)
+    reason = _check_shape(host, pattern)
     if reason:
         return False, reason
     if not _resolves_to_public(host):
@@ -343,7 +347,7 @@ def run_check(force: bool = False) -> dict:
 
 # ── Telling somebody ──────────────────────────────────────────────────────────
 
-def _announce(kind: str, message: str) -> None:
+def _announce(kind: str, message: str, title: str = "Dominio sorgente") -> None:
     """Notify whoever can act on this, and never let that break the check.
 
     ``app.requests.notify`` is imported here rather than at module scope: it
@@ -362,7 +366,7 @@ def _announce(kind: str, message: str) -> None:
             event,
             message,
             notify_module.settings_manager_ids(),
-            title="Dominio sorgente",
+            title=title,
             # The panel itself owns this one when there are no accounts: an open
             # installation still needs to be told its source moved.
             panel_wide=True,
@@ -400,9 +404,14 @@ async def domain_watch_loop():
 
         if not _settings().get("domain_auto_check_enabled", True):
             continue
-        try:
-            await asyncio.to_thread(run_check)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("Domain check failed")
+        # Every source that rotates its domain, one after the other: one
+        # failing must not keep the next from being looked at.
+        from app.core import manga_recovery
+
+        for check in (run_check, manga_recovery.run_check):
+            try:
+                await asyncio.to_thread(check)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("Domain check failed (%s)", check.__module__)

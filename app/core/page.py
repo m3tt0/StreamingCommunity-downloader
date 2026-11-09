@@ -5,6 +5,7 @@ import threading
 import requests
 from bs4 import BeautifulSoup
 
+from app.core import network
 from app.core.headers import get_headers
 
 logger = logging.getLogger(__name__)
@@ -120,7 +121,7 @@ def get_domain_version(domain: str) -> str | None:
         response = requests.get(site_url, headers={"user-agent": get_headers()}, timeout=10)
         response.raise_for_status()
     except Exception as e:
-        raise RuntimeError(f"Cannot reach {domain}: {e}")
+        raise RuntimeError(network.explain(e, domain)) from e
 
     try:
         return _data_page(response.text).get("version", "")

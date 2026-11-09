@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from app.auth.deps import require
 from app.auth.permissions import Permission
-from app.config import VIDEOS_DIR, DATA_FILE
+from app.config import VIDEOS_DIR, DATA_FILE, LIBRARY_TYPES
 from app.core import container
 
 logger = logging.getLogger(__name__)
@@ -149,7 +149,6 @@ def _build_library_tree(directory: Path, depth: int = 0, max_depth: int = 3) -> 
 
 
 _DEFAULT_EXCLUDED = {"images", "snippets", "lost+found"}
-_TYPE_LABELS = {"film": "Film", "tv": "Serie TV", "anime": "Anime"}
 
 
 def _search_tree(directory: Path, base: Path, query: str, excluded: set) -> list[dict]:
@@ -208,7 +207,7 @@ async def list_library_tree():
         exists = lib_path.exists()
         lib_type = lib.get("type", "")
         result.append({
-            "name": _TYPE_LABELS.get(lib_type, lib_type or lib.get("name", "?")),
+            "name": LIBRARY_TYPES.get(lib_type, lib_type or lib.get("name", "?")),
             "abs_path": str(lib_path.resolve()),
             "exists": exists,
             "children": (await asyncio.to_thread(_build_library_tree, lib_path)) if exists else [],

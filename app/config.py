@@ -103,6 +103,11 @@ SETTINGS_DEFAULTS = {
     # these — app.config must not import app.core.
     "output_container": "mkv",
     "subtitle_mode": "embed",
+    # What a manga chapter is saved as: cbz, zip or pdf. Read only through
+    # app.core.mangaworld.configured_format(), which owns the vocabulary.
+    "manga_format": "cbz",
+    # One file per chapter, or one per volume (what Komga shelves as a book).
+    "manga_group": "chapter",
     # The MCP endpoint at /mcp. Off by default: it lets an agent act as a user.
     "mcp_enabled": False,
 }
@@ -137,6 +142,25 @@ def configured_animeunity_host() -> str:
     return ((read_data().get("animeunity_domain") or "").strip()
             or os.getenv("ANIMEUNITY_HOST", "").strip()
             or ANIMEUNITY_DEFAULT_HOST)
+
+
+# Where MangaWorld lives unless the domain recovery or an administrator has
+# moved it. The site rotates TLD (.ac and .so redirect to .mx today); the
+# MANGAWORLD_HOST env var works the same way ANIMEUNITY_HOST does.
+MANGAWORLD_DEFAULT_HOST = "www.mangaworld.mx"
+
+
+def configured_mangaworld_host() -> str:
+    """MangaWorld's host: the saved one, then MANGAWORLD_HOST, then the default."""
+    return ((read_data().get("mangaworld_domain") or "").strip()
+            or os.getenv("MANGAWORLD_HOST", "").strip()
+            or MANGAWORLD_DEFAULT_HOST)
+
+
+# The kinds of library a download can land in, and their names in the
+# interface. One list: the settings endpoint, the boot writability check and
+# the file browser all read it, so a new kind cannot be half-added.
+LIBRARY_TYPES = {"film": "Film", "tv": "Serie TV", "anime": "Anime", "manga": "Manga"}
 
 
 def configured_video_host() -> str:

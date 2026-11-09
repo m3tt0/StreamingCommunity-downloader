@@ -173,6 +173,8 @@ def test_every_phase_the_server_emits_has_a_client_entry():
     # to be present by name.
     phases = [p for p in JobManager._compute_phases(["ita"]) if not p.startswith("audio_")]
     assert "video" in phases, "the phase this test exists for has been renamed"
+    # A manga chapter has its own rail (pages, then the archive).
+    phases += [p for p in JobManager.MANGA_PHASES if p not in phases]
 
     scripts = _all_panel_js()
     missing = []

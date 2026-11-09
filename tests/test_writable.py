@@ -168,6 +168,6 @@ def test_library_dirs_include_videos_dir_only_as_a_fallback(tmp_path, monkeypatc
     assert main_module._library_dirs() == sorted([tmp_path / "films", tmp_path / "videos"])
 
     data_file.write_text(json.dumps({"libraries": [
-        {"type": kind, "path": str(tmp_path / kind)} for kind in ("film", "tv", "anime")
+        {"type": kind, "path": str(tmp_path / kind)} for kind in config.LIBRARY_TYPES
     ]}))
     assert tmp_path / "videos" not in main_module._library_dirs()

@@ -601,8 +601,8 @@ function tpPrimary() {
   }
 }
 
-async function tpToggleFollow() { await toggleFollowSeries('page'); }
-async function tpRefreshFollow() { await checkWatchStatus('page'); }
+async function tpToggleFollow() { await toggleFollowSeries(); }
+async function tpRefreshFollow() { await checkWatchStatus(); }
 
 // Back to wherever the visitor came from, and to the search page when they
 // arrived by pasted link and there is no history to go back to.

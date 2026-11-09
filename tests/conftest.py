@@ -281,7 +281,8 @@ def stub_jobs(monkeypatch):
 
         return _submit
 
-    for name in ("submit_film", "submit_episode", "submit_anime_episode"):
+    for name in ("submit_film", "submit_episode", "submit_anime_episode", "submit_manga_chapter",
+                 "submit_manga_volume"):
         monkeypatch.setattr(job_manager, name, fake_submit(name))
     return submitted
 

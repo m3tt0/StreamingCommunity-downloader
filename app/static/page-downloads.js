@@ -80,6 +80,9 @@ function connectGlobalStream() {
       case 'domain_candidate':
         loadDomainCandidate();
         break;
+      case 'manga_domain_candidate':
+        loadMangaDomain();
+        break;
       case 'notification':
         // A bare signal: the payload lives behind /api/notifications, which is
         // scoped to the caller, so a shared stream leaks nothing.
@@ -109,23 +112,24 @@ function connectGlobalStream() {
 // colour, its border and its label. tests/test_assets.py now checks the set.
 const PHASE_LABELS = {
   scheduled:'Programmato', queued:'In attesa', paused:'In pausa', running:'In corso',
-  video:'Video', joining:'Finalizzazione',
+  video:'Video', joining:'Finalizzazione', pages:'Pagine', packing:'Archivio',
   audio:'Audio', merging:'Unione', done:'Completato', error:'Errore', cancelled:'Annullato',
 };
 const PHASE_BADGE = {
   scheduled:'bg-yellow-lt', queued:'bg-secondary-lt', paused:'bg-orange-lt', running:'bg-blue-lt',
-  video:'bg-blue-lt', joining:'bg-yellow-lt',
+  video:'bg-blue-lt', joining:'bg-yellow-lt', pages:'bg-blue-lt', packing:'bg-yellow-lt',
   audio:'bg-teal-lt', merging:'bg-purple-lt', done:'bg-success-lt',
   error:'bg-danger-lt', cancelled:'bg-secondary-lt',
 };
 const PHASE_BAR = {
-  running:'bg-blue', video:'bg-blue', joining:'phase-bar-joining bg-warning',
+  running:'bg-blue', video:'bg-blue', pages:'bg-blue', joining:'phase-bar-joining bg-warning',
+  packing:'phase-bar-joining bg-warning',
   audio:'phase-bar-audio bg-teal', merging:'phase-bar-merging bg-purple',
   done:'phase-bar-done bg-success', error:'phase-bar-error bg-danger',
 };
 const PHASE_BORDER_MAP = {
   scheduled:'var(--yellow)', queued:'var(--text-dim)', paused:'var(--orange)', running:'var(--blue)',
-  video:'var(--blue)', joining:'var(--yellow)',
+  video:'var(--blue)', joining:'var(--yellow)', pages:'var(--blue)', packing:'var(--yellow)',
   audio:'var(--teal)', merging:'var(--purple)', done:'var(--green)',
   error:'var(--danger)', cancelled:'var(--text-dim)',
 };
@@ -134,7 +138,8 @@ const PHASE_BORDER_MAP = {
 // is named by its language alone - "ITA" reads faster than "Audio ITA" when
 // there are three of them in a row.
 function _stepLabel(phase) {
-  const map = { video:'Video', joining:'Join', merging:'Merge', done:'Fine', audio:'Audio' };
+  const map = { video:'Video', joining:'Join', merging:'Merge', done:'Fine', audio:'Audio',
+                pages:'Pagine', packing:'CBZ' };
   if (map[phase]) return map[phase];
   if (phase && phase.startsWith('audio_')) return 'Audio ' + phase.slice(6).toUpperCase();
   return phase;
@@ -283,6 +288,7 @@ function _buildJobCard(j) {
   const isActive = _isUnfinished(j);
   const isMovie = j.type==='film';
   const isAnimeJob = j.type==='anime';
+  const isManga = j.type==='manga';
   const pct = j.progress?.pct||0;
   const barClass = _phaseBar(phase);
   const animated = isActive && j.status==='running' ? ' progress-bar-striped progress-bar-animated' : '';
@@ -295,7 +301,7 @@ function _buildJobCard(j) {
   const infoStr = j.retry_at ? _retryText(j)
     : (j.status === 'queued' ? _waitingText(j)
       : (j.status === 'paused' ? _PAUSED_TEXT : _jobInfoText(j.progress, j.status)));
-  const infoTitle = (j.progress?.bytes_total && j.status !== 'done')
+  const infoTitle = (j.progress?.bytes_total && j.status !== 'done' && !isManga)
     ? ' title="La playlist non dichiara una dimensione: il totale è stimato sui segmenti già scaricati."'
     : '';
 
@@ -313,7 +319,7 @@ function _buildJobCard(j) {
   return `<div class="card mb-2 job-card${j.status==='done'?' is-done':''}${j.status==='error'?' is-error':''}" id="job-card-${j.job_id}" style="border-left:3px solid ${borderColor} !important">
     <div class="card-body py-2 px-3">
       <div class="d-flex align-items-center gap-2">
-        <span class="badge ${isMovie?'bg-blue-lt':isAnimeJob?'bg-purple-lt':'bg-green-lt'} flex-shrink-0">${isMovie?'Film':isAnimeJob?'Anime':'TV'}</span>
+        <span class="badge ${isMovie?'bg-blue-lt':isAnimeJob?'bg-purple-lt':isManga?'bg-orange-lt':'bg-green-lt'} flex-shrink-0">${isMovie?'Film':isAnimeJob?'Anime':isManga?'Manga':'TV'}</span>
         <span class="fw-medium text-truncate flex-1" style="min-width:0" title="${escapeHtml(j.title)}">${escapeHtml(j.title)}</span>
         <span class="badge ${badgeClass} flex-shrink-0" id="job-badge-${j.job_id}">${label}</span>
         <span id="job-fire-${j.job_id}">${fireBtn}</span>

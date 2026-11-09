@@ -74,13 +74,21 @@
       <div class="settings-section">
         <p class="settings-section-label">Altri host</p>
         <p class="settings-section-hint">
-          Anche AnimeUnity e il server video cambiano dominio. Il server video viene
+          Anche AnimeUnity, MangaWorld e il server video cambiano dominio. Il server video viene
           letto dalla sorgente a ogni download; impostalo qui solo se la sorgente
           continua a indicarne uno che non risponde. Un campo vuoto torna al
           comportamento automatico. Salvando ogni host viene verificato.
         </p>
         <label class="form-label" for="animeunity-host-input">AnimeUnity</label>
         <input type="text" id="animeunity-host-input" class="form-control" placeholder="www.animeunity.co">
+        <label class="form-label mt-3" for="mangaworld-host-input">MangaWorld</label>
+        <input type="text" id="mangaworld-host-input" class="form-control" placeholder="www.mangaworld.mx">
+        <div class="form-text">
+          Se MangaWorld smette di rispondere il pannello segue i reindirizzamenti dei
+          domini gi&agrave; usati e propone quello nuovo, come per la sorgente.
+          <a href="#" data-action="cfg:checkMangaDomain" id="manga-domain-check-btn">Controlla ora</a>
+          <span id="manga-domain-check-feedback"></span>
+        </div>
         <label class="form-label mt-3" for="video-host-input">Server video</label>
         <input type="text" id="video-host-input" class="form-control" placeholder="Automatico (dalla sorgente)">
         <div class="settings-actions">
@@ -373,6 +381,33 @@
               Integrati in un MP4 significa convertiti in <code>mov_text</code>, che perde
               colori, grassetti e posizionamento. I file separati evitano la conversione:
               Jellyfin li riconosce lo stesso, perch&eacute; prendono il nome del video.
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label" for="setting-manga-format">Manga</label>
+            <select id="setting-manga-format" class="form-select">
+              <option value="cbz">CBZ</option>
+              <option value="zip">ZIP</option>
+              <option value="pdf">PDF</option>
+            </select>
+            <div class="form-text">
+              Il formato predefinito di ogni capitolo; la pagina Manga permette di sceglierne
+              un altro per un singolo download. CBZ &egrave; quello che Komga e Kavita leggono
+              con i metadati; ZIP &egrave; lo stesso archivio; PDF si apre ovunque, senza
+              ricomprimere le pagine.
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label" for="setting-manga-group">Manga: un file per</label>
+            <select id="setting-manga-group" class="form-select">
+              <option value="chapter">Capitolo</option>
+              <option value="volume">Volume</option>
+            </select>
+            <div class="form-text">
+              Komga mostra ogni file come un libro della serie. Per volume, una serie lunga
+              diventa la sua fila di volumi invece di centinaia di capitoli; riscaricare un
+              volume sostituisce i file dei capitoli che contiene. I capitoli non ancora in un
+              volume restano file a s&eacute;.
             </div>
           </div>
         </div>

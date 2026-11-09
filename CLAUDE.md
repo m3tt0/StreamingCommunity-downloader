@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 A self-hosted FastAPI web panel that searches and downloads films, TV series and anime from
-StreamingCommunity and AnimeUnity into a Jellyfin library. It handles M3U8 parsing, AES-CBC segment
+StreamingCommunity and AnimeUnity into a Jellyfin library, and Italian manga scans from MangaWorld
+as `.cbz` archives for Komga/Kavita. It handles M3U8 parsing, AES-CBC segment
 decryption, parallel downloading and FFmpeg merging.
 
 Access can be authenticated against a Jellyfin server; there is no local password store.
@@ -62,6 +63,13 @@ request before any route runs.
 - `hosts.py` — validation and verification of the AnimeUnity host and the video host override
 - `animeunity.py` — AnimeUnity search (`/archivio/get-animes`, paged 30 at a time,
   with the source's own `type` and `dubbed` filters), episodes, download
+- `mangaworld.py` — MangaWorld search (`/archive`, 16 per page), title page (chapters by volume,
+  behind a 10-minute cache keyed on the host), reader pages (`img.page-image`, only on the host's
+  own registrable domain), and `download_chapter()`: pages in parallel, then one `.cbz` with a
+  `ComicInfo.xml`, staged dot-prefixed and `os.replace`d. No FFmpeg, no languages.
+- `manga_recovery.py` — MangaWorld's domain recovery: candidates are where old domains 301 to
+  (one hop, never followed) plus known hosts; reuses `domain_recovery.is_plausible()` with its own
+  `NAME_PATTERN`, verifies `og:site_name` with redirects off, proposes unless `domain_auto_apply`.
 - `m3u8.py` — `M3U8_Parser`, `M3U8_Segments`, `M3U8_Downloader`, `Decryption`, `download_m3u8()`
 - `paths.py` — destination paths (`film_path`, `episode_path`, `anime_path`). The request system's library check goes through these, so a change here changes both. Names come from `naming.py`; the optional `templates=` argument is what lets the library check ask for the *legacy* layout.
 - `headers.py` — user-agent rotation, `sanitize_filename`
@@ -257,6 +265,22 @@ anything under a mounted static directory is readable by unauthenticated visitor
 - **An empty `events` array on a notification channel means *every* event**, not none. Any UI
   offering a selection has to express "all" as its own state, or unchecking the last box silently
   subscribes to everything.
+- **Manga is download-only and DOWNLOAD-gated.** `/api/manga/*` has no request queue or watches yet;
+  the client sends ids (manga, slug, chapter ids), never a name or a path — `download_chapter()`
+  re-reads the title for those, and reads the host at run time so a retry follows a domain change.
+  A chapter missing a page fails like a video missing a segment. The format (`cbz`/`zip`/`pdf`,
+  `mangaworld.FORMATS`) is the `manga_format` setting or a per-download override; every format
+  counts as present, and a new one replaces the old sibling. `manga_pdf.py` writes the PDF itself
+  so JPEG pages are embedded untouched (Pillow's writer would re-encode them). `manga_group`
+  (`chapter`/`volume`, `mangaworld.GROUPS`) picks one book per chapter or per volume
+  (`download_volume`, one job per volume, chapters listed when it runs). Every book carries a
+  manifest of the chapter ids it holds (ComicInfo `Notes`, PDF `/SCPanelChapters`), and
+  `chapters_on_disk()` reads it: a volume file existing does not mean the volume is complete. A
+  finished volume removes the chapter files it now holds.
+- **A certificate that fails verification is explained, never bypassed.** `network.explain()` reads
+  the issuer of what was presented (an ISP block page, e.g. Wind Tre) and says so; the fix is a
+  VPN or `HTTPS_PROXY`/`ALL_PROXY` (PySocks is installed for `socks5h://`), not `verify=False`. Library kinds live in one place,
+  `config.LIBRARY_TYPES`; a new one added anywhere else is half-added.
 - **A download with a missing segment must fail, never join.** TS concatenated with gaps produces a
   file that opens, plays, and is wrong — and lands in the library looking like a good one. Failing
   is recoverable because the download can be run again; a silently truncated film is not, because

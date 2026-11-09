@@ -87,7 +87,10 @@ async function loadDomainStatus() {
       badge.textContent = currentDomain;
     } else {
       badge.className = 'badge bg-danger';
-      badge.textContent = 'Domain non configurato';
+      // Configured but unreachable is not the same problem as never set: the
+      // first is usually the provider blocking the site, and Settings says why.
+      badge.textContent = currentDomain ? 'Dominio irraggiungibile' : 'Dominio non configurato';
+      badge.title = currentDomain ? `${currentDomain} non risponde: verificalo in Impostazioni` : '';
       // Only when the visitor did not ask for somewhere in particular. This
       // resolves after routing now, and a link to #/files must not be
       // overruled by a domain check that finished late.
@@ -185,12 +188,12 @@ function closeMobileMenu() {
 function showPage(page, params = null) {
   closeMobileMenu();
   if (params) PAGE_HASH[page]?.apply?.(params);
-  ['search','downloads','files','requests','my-requests','watches','users','detail','settings'].forEach(p => {
+  ['search','manga','downloads','files','requests','my-requests','watches','users','detail','settings'].forEach(p => {
     const el = document.getElementById(`page-${p}`);
     if (el) el.style.display = p === page ? '' : 'none';
   });
   document.getElementById('page-title').textContent = {
-    search:'Cerca', downloads:'Download', files:'File',
+    search:'Cerca', manga:'Manga', downloads:'Download', files:'File',
     requests:'Coda richieste', 'my-requests':'Le mie richieste',
     watches:'Serie seguite', users:'Utenti', detail:'', settings:'Impostazioni',
   }[page] ?? 'Cerca';
@@ -200,6 +203,7 @@ function showPage(page, params = null) {
   // a filter applying itself, a season loading — knows which page it is on.
   _routePage = page;
   if (page === 'search') searchPageEnter();
+  if (page === 'manga') mangaPageEnter();
   if (page === 'downloads') refreshJobs();
   if (page === 'files') loadFiles();
   if (page === 'requests') loadRequestQueue();

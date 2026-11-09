@@ -99,7 +99,7 @@ AUTO_RETRY_DELAY = 60  # seconds
 class DownloadJob:
     job_id: str
     title: str
-    type: str  # "film" | "episode" | "anime"
+    type: str  # "film" | "episode" | "anime" | "manga"
     status: str  # "scheduled" | "queued" | "paused" | "running" | "done" | "error" | "cancelled"
     created_at: datetime
     scheduled_at: Optional[datetime] = None
@@ -117,7 +117,7 @@ class DownloadJob:
     # Set when this job is one episode of a season or series asked for in one go,
     # so the notification can be a single summary instead of one per episode.
     batch_id: Optional[str] = None
-    batch_kind: Optional[str] = None    # "season" | "series" | "anime_all"
+    batch_kind: Optional[str] = None    # "season" | "series" | "anime_all" | "manga"
     batch_label: Optional[str] = None   # computed once at submit, e.g. "Serie — Stagione 2"
 
     # Who asked for it. None in open mode, where there is no account to notify.
@@ -886,6 +886,55 @@ class JobManager:
             audio_languages=audio_languages or ["ita"],
             subtitle_languages=subtitle_languages or ["ita", "eng"],
             strict_audio=strict_audio,
+        )
+
+    # A chapter has pages, not tracks: no languages, no FFmpeg. The host is not
+    # an argument — the downloader reads it when it runs, so a retry after the
+    # domain moved goes to the new one.
+    MANGA_PHASES = ["pages", "packing", "done"]
+
+    def submit_manga_chapter(self, manga_id: int, slug: str, manga_name: str,
+                             chapter: dict, fmt: str = None, user_id: int = None,
+                             batch_id: str = None, batch_kind: str = None,
+                             batch_label: str = None) -> str:
+        from app.core.mangaworld import download_chapter
+
+        number = chapter.get("number")
+        title = f"{manga_name} — {'Cap. ' + number if number else chapter.get('label') or ''}"
+        job = self._make_job(title.rstrip(" —"), "manga", phases=list(self.MANGA_PHASES),
+                             user_id=user_id, batch_id=batch_id, batch_kind=batch_kind,
+                             batch_label=batch_label, media_label=manga_name,
+                             episode_number=number, external_id=str(manga_id))
+        return self._submit_job(
+            job, download_chapter,
+            manga_id, slug, chapter["id"],
+            output_dir=_get_library_path("manga"),
+            temp_dir=str(TMP_DIR / job.job_id),
+            progress_factory=self._make_progress_factory(job),
+            cancel_event=job.cancel_event,
+            fmt=fmt,
+        )
+
+    def submit_manga_volume(self, manga_id: int, slug: str, manga_name: str,
+                            volume: int, fmt: str = None, user_id: int = None,
+                            batch_id: str = None, batch_kind: str = None,
+                            batch_label: str = None) -> str:
+        """A whole volume as one book; its chapters are listed when it runs."""
+        from app.core.mangaworld import download_volume
+
+        job = self._make_job(f"{manga_name} — Vol. {volume}", "manga",
+                             phases=list(self.MANGA_PHASES), user_id=user_id,
+                             batch_id=batch_id, batch_kind=batch_kind,
+                             batch_label=batch_label, media_label=manga_name,
+                             season=int(volume), external_id=str(manga_id))
+        return self._submit_job(
+            job, download_volume,
+            manga_id, slug, int(volume),
+            output_dir=_get_library_path("manga"),
+            temp_dir=str(TMP_DIR / job.job_id),
+            progress_factory=self._make_progress_factory(job),
+            cancel_event=job.cancel_event,
+            fmt=fmt,
         )
 
     # ── Schedule (future) ──────────────────────────────────────────────────────

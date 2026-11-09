@@ -944,20 +944,6 @@
     @media (max-width: 575px) {
       .user-row { flex-wrap: wrap; }
       .user-actions { width: 100%; }
-    }/* Two lines. A synopsis is context for choosing {
-      margin-top: 3px;
-      color: var(--text-muted); font-size: 12px; line-height: 1.45;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-      overflow: hidden;
-    }/* Already downloaded. Stated quietly: it is a fact about the library,
-    not
-       a warning { color: var(--green); margin-right: 6px; font-size: 15px; vertical-align: middle; }
-
-    @media (max-width: 575px) {
-    }/* ── Title facts and cast {
-      margin-bottom: 8px;
-      font-size: 12.5px; line-height: 1.6;
-      color: var(--text-sub);
     }
 
     /* ═══════════════════════════════════════════════════════
@@ -1388,3 +1374,77 @@
     }
     .settings-page .nav-tabs::-webkit-scrollbar { display: none; }
     .settings-page .nav-tabs .nav-link { white-space: nowrap; }
+
+    /* ═══════════════════════════════════════════════════════
+       MANGA
+       ═══════════════════════════════════════════════════════ */
+
+    .mg-head { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 18px; }
+    .mg-cover {
+      width: 140px; flex-shrink: 0; border-radius: var(--radius-lg);
+      aspect-ratio: 2 / 3; object-fit: cover; background: var(--bg-surface);
+    }
+    .mg-info { min-width: 0; flex: 1; }
+    .mg-title {
+      font-family: var(--font-brand); font-weight: 600; font-size: 22px;
+      color: var(--text); margin: 0 0 4px;
+    }
+    .mg-facts { font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px; }
+    .mg-genres { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+    /* Four lines: the synopsis is context for choosing, not the point. */
+    .mg-plot {
+      font-size: 13px; line-height: 1.5; color: var(--text-sub); margin: 0;
+      display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Sticky, so the buttons stay reachable down a thousand-chapter list. */
+    .mg-actions {
+      position: sticky; top: 0; z-index: 5;
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      padding: 10px 0; margin-bottom: 8px;
+      background: var(--bg-base); border-bottom: 1px solid var(--border);
+    }
+    .mg-summary { font-size: 12.5px; color: var(--text-muted); margin-right: auto; }
+
+    .mg-volume { border-bottom: 1px solid var(--border); }
+    .mg-volume > summary {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 2px; cursor: pointer; list-style: none;
+    }
+    .mg-volume > summary::-webkit-details-marker { display: none; }
+    .mg-volume > summary::after {
+      content: '\ea5f';                     /* ti-chevron-down */
+      font-family: 'tabler-icons'; margin-left: auto;
+      color: var(--text-dim); transition: transform .15s ease;
+    }
+    .mg-volume[open] > summary::after { transform: rotate(180deg); }
+    .mg-vol-name { font-weight: 600; color: var(--text); }
+    .mg-vol-count { font-size: 12px; color: var(--text-muted); }
+
+    .mg-chapters { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2px 16px; padding: 0 0 10px 26px; }
+    .mg-chapter {
+      display: flex; align-items: center; gap: 8px; margin: 0;
+      padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    .mg-chapter:hover { background: var(--bg-surface); }
+    .mg-ch-label { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mg-ch-date { margin-left: auto; font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+    .mg-have { color: var(--green); font-size: 15px; }
+    .mg-chapter.is-have .mg-ch-label { color: var(--text-muted); }
+
+    @media (max-width: 575px) {
+      .mg-head { gap: 14px; }
+      .mg-cover { width: 96px; }
+      .mg-chapters { padding-left: 0; }
+    }
+    .mg-format { width: auto; }
+    /* The month's ranking on a cover: the source gives the place, not a picture
+       of it, so it rides over the poster or its placeholder. */
+    .mg-rank {
+      position: absolute; left: 8px; top: 8px; z-index: 2;
+      min-width: 28px; height: 28px; padding: 0 6px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; color: #fff;
+      background: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,.35);
+    }

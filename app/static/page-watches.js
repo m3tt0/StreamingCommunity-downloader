@@ -230,60 +230,29 @@ async function mergeWatchLanguages(watchId) {
   loadWatches();
 }
 
-// The follow toggle lives in two modals whose contexts are shaped differently,
-// so both are flattened to the same shape here rather than in each caller.
-function _followTarget(kind) {
-  if (kind === 'page') {
-    // The title page, which serves both sources from one screen.
-    const anime = _tp.type === 'anime';
-    return {
-      btnId: 'th-follow-btn',
-      source: anime ? 'animeunity' : 'streamingcommunity',
-      media_type: anime ? 'anime' : 'tv',
-      external_id: String(_tp.id ?? ''),
-      title: _tp.name,
-      slug: _tp.slug,
-      year: _tp.year,
-      poster: _tp.poster,
-      anime_type: _tp.animeType,
-      audio_languages: _tpPicked('audio'),
-      subtitle_languages: _tpPicked('subs'),
-      // A film has no next episode to wait for.
-      followable: _tp.type !== 'movie' && (!anime || !isAnimeFilm(_tp.animeType)),
-    };
-  }
-  if (kind === 'anime') {
-    return {
-      btnId: 'follow-anime-btn',
-      source: 'animeunity',
-      media_type: 'anime',
-      external_id: String(_animeCtx.animeId ?? ''),
-      title: _animeCtx.animeName,
-      year: _animeCtx.animeYear,
-      anime_type: _animeCtx.animeType,
-      audio_languages: _animeCtx.audioLangs || [],
-      subtitle_languages: _animeCtx.subLangs || [],
-      // A one-shot anime film has no next episode to wait for.
-      followable: !isAnimeFilm(_animeCtx.animeType),
-    };
-  }
+// The follow toggle lives on the title page, which serves both sources from
+// one screen; this flattens its state into what the watches API takes.
+function _followTarget() {
+  const anime = _tp.type === 'anime';
   return {
-    btnId: 'follow-tv-btn',
-    source: 'streamingcommunity',
-    media_type: 'tv',
-    external_id: String(_epCtx.tvId ?? ''),
-    title: _epCtx.tvName,
-    slug: _epCtx.slug,
-    year: _epCtx.year,
-    poster: _epCtx.poster,
-    audio_languages: _epCtx.audioLangs || [],
-    subtitle_languages: _epCtx.subLangs || [],
-    followable: true,
+    btnId: 'th-follow-btn',
+    source: anime ? 'animeunity' : 'streamingcommunity',
+    media_type: anime ? 'anime' : 'tv',
+    external_id: String(_tp.id ?? ''),
+    title: _tp.name,
+    slug: _tp.slug,
+    year: _tp.year,
+    poster: _tp.poster,
+    anime_type: _tp.animeType,
+    audio_languages: _tpPicked('audio'),
+    subtitle_languages: _tpPicked('subs'),
+    // A film has no next episode to wait for.
+    followable: _tp.type !== 'movie' && (!anime || !isAnimeFilm(_tp.animeType)),
   };
 }
 
-function _renderFollowButton(kind, following, busy = false) {
-  const target = _followTarget(kind);
+function _renderFollowButton(following, busy = false) {
+  const target = _followTarget();
   const btn = document.getElementById(target.btnId);
   if (!btn) return;
   // Available with or without Jellyfin: an ownerless watch downloads directly,
@@ -306,22 +275,22 @@ function _renderFollowButton(kind, following, busy = false) {
     : 'Cerca automaticamente i nuovi episodi di questa serie';
 }
 
-async function checkWatchStatus(kind) {
-  const target = _followTarget(kind);
-  if (!target.followable || !target.external_id) { _renderFollowButton(kind, false); return; }
+async function checkWatchStatus() {
+  const target = _followTarget();
+  if (!target.followable || !target.external_id) { _renderFollowButton(false); return; }
   try {
     const data = await api.get('/api/watches/status', {
       source: target.source, media_type: target.media_type, external_id: target.external_id,
     });
-    _renderFollowButton(kind, !!data.followed_by_me);
-  } catch (e) { _renderFollowButton(kind, false); }
+    _renderFollowButton(!!data.followed_by_me);
+  } catch (e) { _renderFollowButton(false); }
 }
 
-async function toggleFollowSeries(kind) {
-  const target = _followTarget(kind);
+async function toggleFollowSeries() {
+  const target = _followTarget();
   const btn = document.getElementById(target.btnId);
   const following = !!(btn && btn.dataset.following);
-  _renderFollowButton(kind, following, true);
+  _renderFollowButton(following, true);
 
   try {
     if (following) {
@@ -329,18 +298,18 @@ async function toggleFollowSeries(kind) {
         source: target.source, media_type: target.media_type, external_id: target.external_id,
       });
       await api.del(`/api/watches/${status.watch_id}`);
-      _renderFollowButton(kind, false);
+      _renderFollowButton(false);
       showToast('Serie non più seguita', 'success');
     } else {
       let data;
       try {
         data = await api.post('/api/watches', target);
       } catch (e) {
-        _renderFollowButton(kind, false);
+        _renderFollowButton(false);
         showToast(errText(e, 'Impossibile seguire la serie'), 'danger');
         return;
       }
-      _renderFollowButton(kind, true);
+      _renderFollowButton(true);
       // Only true for someone who can start downloads. Without that permission
       // each new episode becomes a request an approver has to accept, and
       // saying otherwise sets up a wait for something that never arrives.
@@ -359,7 +328,7 @@ async function toggleFollowSeries(kind) {
     }
     if (document.getElementById('page-watches').style.display !== 'none') loadWatches();
   } catch (e) {
-    _renderFollowButton(kind, following);
+    _renderFollowButton(following);
     showToast('Errore di rete', 'danger');
   }
 }

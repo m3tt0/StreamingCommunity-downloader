@@ -307,6 +307,19 @@ async function saveNotificationChannel() {
   finally { btn.disabled = false; }
 }
 
+// "Controlla ora" for MangaWorld: a forced check, which proposes rather than
+// applies, so the answer is the banner on the Manga page.
+async function checkMangaDomain() {
+  const out = document.getElementById('manga-domain-check-feedback');
+  out.textContent = ' — controllo in corso...';
+  try {
+    const r = await api.post('/api/manga/domain/check');
+    out.textContent = r.candidate ? ` — trovato ${r.candidate}: confermalo dalla pagina Manga.`
+      : (r.current_ok ? ` — ${r.current} risponde.` : ' — nessun dominio alternativo trovato.');
+    if (r.candidate) loadMangaDomain();
+  } catch (e) { out.textContent = ' — ' + errText(e, 'controllo non riuscito.'); }
+}
+
 async function toggleNotificationChannel(id, enabled) {
   try {
     await api.patch(`/api/notification-channels/${id}`, {enabled});
@@ -392,7 +405,7 @@ async function connectJellyfin(reconfigure) {
     _feedback(fbId, 'Collegato. Ricaricamento...', 'success');
     window.location.reload();
   } catch (e) {
-    _feedback(fbId, 'Errore di rete.', 'danger');
+    _feedback(fbId, errText(e, 'Errore di rete.'), 'danger');
     btn.disabled = false;
   }
 }
@@ -418,6 +431,8 @@ async function loadOutputSettings() {
   if (!data) return;
   document.getElementById('setting-output-container').value = data.output_container || 'mkv';
   document.getElementById('setting-subtitle-mode').value = data.subtitle_mode || 'embed';
+  document.getElementById('setting-manga-format').value = data.manga_format || 'cbz';
+  document.getElementById('setting-manga-group').value = data.manga_group || 'chapter';
 }
 
 async function saveOutputSettings() {
@@ -427,11 +442,13 @@ async function saveOutputSettings() {
   btn.disabled = true;
   _feedback('output-feedback', 'Salvataggio...');
   try {
-    // Only the two keys this section owns: set_app_settings merges over what is
+    // Only the keys this section owns: set_app_settings merges over what is
     // stored, so it cannot clobber a change made seconds ago in another pane.
     await api.put('/api/domain/settings', {
       output_container: outputContainer,
       subtitle_mode: subtitleMode,
+      manga_format: document.getElementById('setting-manga-format').value,
+      manga_group: document.getElementById('setting-manga-group').value,
     });
     _feedback('output-feedback', 'Salvato.', 'success');
     showToast('Formato di uscita salvato', 'success');
@@ -456,6 +473,9 @@ function _fillHosts(data) {
   const au = document.getElementById('animeunity-host-input');
   au.placeholder = data.animeunity_default;
   au.value = data.animeunity_saved || '';
+  const mw = document.getElementById('mangaworld-host-input');
+  mw.placeholder = data.mangaworld_default;
+  mw.value = data.mangaworld_saved || '';
   document.getElementById('video-host-input').value = data.video_host || '';
 }
 
@@ -470,6 +490,7 @@ async function saveHosts() {
   try {
     const data = await api.put('/api/domain/hosts', {
       animeunity: document.getElementById('animeunity-host-input').value.trim(),
+      mangaworld: document.getElementById('mangaworld-host-input').value.trim(),
       video_host: document.getElementById('video-host-input').value.trim(),
     });
     _fillHosts(data);
@@ -563,7 +584,7 @@ async function saveNamingTemplates() {
     await api.put('/api/domain/settings', {naming_templates: _collectNamingTemplates()});
     _feedback('naming-feedback', 'Salvato.', 'success');
     showToast('Schema dei nomi salvato', 'success');
-  } catch (e) { _feedback('naming-feedback', 'Errore di rete.', 'danger'); }
+  } catch (e) { _feedback('naming-feedback', errText(e, 'Errore di rete.'), 'danger'); }
   finally { btn.disabled = false; }
 }
 
@@ -727,7 +748,7 @@ async function testHook(id) {
       _feedback('hooks-feedback',
         data.status ? `Fallito (HTTP ${data.status}).` : 'Nessuna risposta.', 'danger');
     }
-  } catch (e) { _feedback('hooks-feedback', 'Errore di rete.', 'danger'); }
+  } catch (e) { _feedback('hooks-feedback', errText(e, 'Errore di rete.'), 'danger'); }
 }
 
 // ── Post-download hooks end ────────────────────────────────────────────────────
@@ -790,7 +811,7 @@ async function checkDomainNow() {
         'danger');
     }
     await loadDomainCandidate();
-  } catch (e) { _feedback('domain-recovery-feedback', 'Errore di rete.', 'danger'); }
+  } catch (e) { _feedback('domain-recovery-feedback', errText(e, 'Errore di rete.'), 'danger'); }
   finally { btn.disabled = false; }
 }
 
@@ -829,9 +850,10 @@ async function saveDomain() {
     const badge = document.getElementById('domain-badge');
     badge.className = 'badge bg-success';
     badge.textContent = data.domain;
-    showToast('Domain salvato', 'success');
+    badge.title = '';
+    showToast('Dominio salvato', 'success');
   } catch(e) {
-    _feedback('domain-feedback', 'Errore di rete', 'danger');
+    _feedback('domain-feedback', errText(e, 'Errore di rete.'), 'danger');
   } finally { btn.disabled = false; }
 }
 
@@ -846,7 +868,7 @@ async function loadLibraries() {
     if (inp) inp.value = excl;
   } catch(e) { console.error('loadLibraries:', e); }
 }
-const _LIB_TYPE_OPTIONS = [{value:'film',label:'Film'},{value:'tv',label:'Serie TV'},{value:'anime',label:'Anime'}];
+const _LIB_TYPE_OPTIONS = [{value:'film',label:'Film'},{value:'tv',label:'Serie TV'},{value:'anime',label:'Anime'},{value:'manga',label:'Manga'}];
 function renderLibrariesList() {
   const c = document.getElementById('libraries-list');
   if (!c) return;
@@ -1084,6 +1106,7 @@ registerActions({
   'cfg:checkUpdates':     () => checkUpdatesNow(),
   'cfg:saveDomain':       () => saveDomain(),
   'cfg:saveHosts':        () => saveHosts(),
+  'cfg:checkMangaDomain': () => checkMangaDomain(),
   'cfg:saveRecovery':     () => saveDomainRecovery(),
   'cfg:checkDomain':      () => checkDomainNow(),
   'cfg:addLibrary':       () => addLibrary(),

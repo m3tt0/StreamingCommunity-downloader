@@ -28,6 +28,8 @@ _BATCH_TITLES = {
     "season": ("Stagione completata", "Stagione completata con errori", "Stagione non scaricata"),
     "series": ("Serie completata", "Serie completata con errori", "Serie non scaricata"),
     "anime_all": ("Anime completato", "Anime completato con errori", "Anime non scaricato"),
+    "manga": ("Manga scaricato", "Manga scaricato con errori", "Manga non scaricato"),
+    "manga_volumes": ("Manga scaricato", "Manga scaricato con errori", "Manga non scaricato"),
 }
 
 
@@ -96,6 +98,10 @@ def pending_batches() -> int:
 
 def _episode_label(job) -> str:
     """A label that stays unambiguous inside a whole-series batch."""
+    if job.type == "manga":
+        if job.episode_number:
+            return f"Cap. {job.episode_number}"
+        return f"Vol. {job.season}" if job.season is not None else job.title
     if job.season is not None and job.episode_number is not None:
         return f"S{int(job.season):02d}E{str(job.episode_number).zfill(2)}"
     if job.episode_number is not None:
@@ -174,6 +180,8 @@ def _announce_batch(batch: _Batch):
     panel = not recipients
     total = ok + len(failed) + len(cancelled)
     ok_title, partial_title, none_title = _BATCH_TITLES.get(batch.kind, _BATCH_TITLES["season"])
+    unit, one = {"manga": ("capitoli", "capitolo"),
+                 "manga_volumes": ("volumi", "volume")}.get(batch.kind, ("episodi", "episodio"))
 
     counts = f"✅ {ok} scaricati"
     if failed:
@@ -182,7 +190,7 @@ def _announce_batch(batch: _Batch):
         counts += f" · ⏹ {len(cancelled)} annullati"
 
     if not failed:
-        plain = f"«{batch.label}» completata: {ok} episodi su {total} scaricati."
+        plain = f"«{batch.label}» completata: {ok} {unit} su {total} scaricati."
         body = f"«**{batch.label}**»\n{counts}"
         notify.notify(notify.DOWNLOAD_BATCH_COMPLETED, plain, recipients, panel_wide=panel,
                       markdown_message=_truncate(body), title=ok_title)
@@ -190,14 +198,14 @@ def _announce_batch(batch: _Batch):
 
     listed = "\n".join(_failure_lines(failed))
     if ok == 0:
-        plain = f"«{batch.label}»: nessun episodio scaricato, {len(failed)} falliti."
-        body = f"«**{batch.label}**»\n❌ {len(failed)} episodi su {total} falliti.\n\n**Episodi falliti**\n{listed}"
+        plain = f"«{batch.label}»: nessun {one} scaricato, {len(failed)} falliti."
+        body = f"«**{batch.label}**»\n❌ {len(failed)} {unit} su {total} falliti.\n\n**{unit.capitalize()} falliti**\n{listed}"
         notify.notify(notify.DOWNLOAD_BATCH_FAILED, plain, recipients, panel_wide=panel,
                       markdown_message=_truncate(body), title=none_title)
         return
 
-    plain = f"«{batch.label}»: {ok} episodi scaricati, {len(failed)} falliti."
-    body = f"«**{batch.label}**»\n{counts}\n\n**Episodi falliti**\n{listed}"
+    plain = f"«{batch.label}»: {ok} {unit} scaricati, {len(failed)} falliti."
+    body = f"«**{batch.label}**»\n{counts}\n\n**{unit.capitalize()} falliti**\n{listed}"
     # Neither a success nor a failure, and the colour should say so.
     notify.notify(notify.DOWNLOAD_BATCH_COMPLETED, plain, recipients, panel_wide=panel,
                   markdown_message=_truncate(body), title=partial_title,

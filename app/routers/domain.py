@@ -10,7 +10,7 @@ from app import config
 from app.auth.deps import require
 from app.auth.permissions import Permission
 from app.config import get_settings, save_settings
-from app.core import animeunity, domain_recovery, home, hosts, metadata, naming
+from app.core import animeunity, domain_recovery, home, hosts, manga_recovery, metadata, naming
 from app.core.paths import validate_library_path
 from app.core.page import get_domain_version
 
@@ -118,6 +118,7 @@ class HostsUpdate(BaseModel):
     """Either field may be omitted; an empty string resets it to automatic."""
 
     animeunity: str | None = None
+    mangaworld: str | None = None
     video_host: str | None = None
 
 
@@ -127,6 +128,9 @@ def _hosts_state() -> dict:
         "animeunity": config.configured_animeunity_host(),
         "animeunity_saved": (data.get("animeunity_domain") or "").strip(),
         "animeunity_default": config.ANIMEUNITY_DEFAULT_HOST,
+        "mangaworld": config.configured_mangaworld_host(),
+        "mangaworld_saved": (data.get("mangaworld_domain") or "").strip(),
+        "mangaworld_default": config.MANGAWORLD_DEFAULT_HOST,
         "video_host": config.configured_video_host(),
     }
 
@@ -148,6 +152,7 @@ async def set_hosts(body: HostsUpdate):
     changes = {}
     for field, key, verify in (
         ("animeunity", "animeunity_domain", hosts.verify_animeunity),
+        ("mangaworld", "mangaworld_domain", hosts.verify_mangaworld),
         ("video_host", "video_host", hosts.verify_video_host),
     ):
         value = getattr(body, field)
@@ -168,12 +173,25 @@ async def set_hosts(body: HostsUpdate):
     if "animeunity_domain" in changes:
         animeunity.forget_csrf()
         home.clear_cache("animeunity")
+    if "mangaworld_domain" in changes:
+        # A person decided; a proposal found before that is stale.
+        manga_recovery.clear_pending()
+        home.clear_cache("mangaworld")
     return _hosts_state()
 
 
 class LibraryItem(BaseModel):
-    type: Literal["film", "tv", "anime"]
+    type: str
     path: str
+
+    @field_validator("type")
+    @classmethod
+    def _known_type(cls, value):
+        # config.LIBRARY_TYPES rather than a Literal written out here: the list
+        # used to live in four places and a new kind has to reach all of them.
+        if value not in config.LIBRARY_TYPES:
+            raise ValueError(f"Tipo di libreria sconosciuto: {value}")
+        return value
 
 
 class LibrariesUpdate(BaseModel):
@@ -233,6 +251,9 @@ class SettingsUpdate(BaseModel):
     # against app.core.container, so the table and the API cannot drift.
     output_container: Literal["mkv", "mp4"] | None = None
     subtitle_mode: Literal["embed", "external"] | None = None
+    # Pinned against mangaworld.FORMATS in tests/test_manga.py.
+    manga_format: Literal["cbz", "zip", "pdf"] | None = None
+    manga_group: Literal["chapter", "volume"] | None = None
     # Declared late. It was in SETTINGS_DEFAULTS, read by downloads_hooks and
     # PUT by the settings page, but missing here — and pydantic ignores unknown
     # fields, so the switch reported "Salvato." and saved nothing.

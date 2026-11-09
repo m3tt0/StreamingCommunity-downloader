@@ -1,6 +1,6 @@
 """The hosts besides the StreamingCommunity domain, and their manual overrides.
 
-AnimeUnity and the video host (vixcloud) both move TLD from time to time. The
+AnimeUnity, MangaWorld and the video host (vixcloud) all move TLD from time to time. The
 video host follows the embed URL on its own; AnimeUnity has a default. Either
 can be set by hand in Settings › Sorgente, so a move the code does not foresee
 is a form to fill in rather than a release to wait for.
@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 import requests
 
+from app.core import network
 from app.core.headers import get_headers
 
 _HOSTNAME = re.compile(r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
@@ -49,9 +50,23 @@ def verify_animeunity(host: str) -> None:
                                timeout=15)
         r.raise_for_status()
     except Exception as e:
-        raise RuntimeError(f"{host} non raggiungibile: {e}")
+        raise RuntimeError(network.explain(e, host)) from e
     if "animeunity" not in r.text.lower():
         raise RuntimeError(f"{host} risponde, ma non sembra AnimeUnity")
+
+
+def verify_mangaworld(host: str) -> None:
+    """Raise RuntimeError unless ``host`` serves MangaWorld's own home page."""
+    from app.core.mangaworld import looks_like_mangaworld
+
+    try:
+        r = requests.get(f"https://{host}/", headers={"user-agent": get_headers()},
+                         timeout=15)
+        r.raise_for_status()
+    except Exception as e:
+        raise RuntimeError(network.explain(e, host)) from e
+    if not looks_like_mangaworld(r.text):
+        raise RuntimeError(f"{host} risponde, ma non sembra MangaWorld")
 
 
 def verify_video_host(host: str) -> None:
@@ -60,6 +75,6 @@ def verify_video_host(host: str) -> None:
         r = requests.get(f"https://{host}/storage/enc.key",
                          headers={"user-agent": get_headers()}, timeout=15)
     except Exception as e:
-        raise RuntimeError(f"{host} non raggiungibile: {e}")
+        raise RuntimeError(network.explain(e, host)) from e
     if not r.ok or len(r.content) != 16:
         raise RuntimeError(f"{host} non serve la chiave video (HTTP {r.status_code})")

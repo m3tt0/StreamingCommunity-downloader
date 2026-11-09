@@ -15,7 +15,7 @@ import time
 
 from bs4 import BeautifulSoup
 
-from app.core import animeunity, page
+from app.core import animeunity, mangaworld, page
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +192,12 @@ def shelves(source: str, domain: str) -> list[dict]:
         return hit
 
     try:
-        result = _au_shelves() if source == "animeunity" else _sc_shelves(domain)
+        if source == "animeunity":
+            result = _au_shelves()
+        elif source == "mangaworld":
+            result = mangaworld.home_shelves()
+        else:
+            result = _sc_shelves(domain)
     except Exception:
         logger.exception("Cannot read the front page of %s", source)
         return []
